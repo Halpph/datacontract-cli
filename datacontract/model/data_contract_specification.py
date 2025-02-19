@@ -58,6 +58,9 @@ class Server(pyd.BaseModel):
     dataset: str | None = None
     path: str | None = None
     delimiter: str | None = None
+    header: bool | None = None
+    escape: str | None = None
+    encoding: str | None = None
     endpointUrl: str | None = None
     location: str | None = None
     account: str | None = None

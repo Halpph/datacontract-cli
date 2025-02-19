@@ -42,14 +42,29 @@ def get_duckdb_connection(data_contract, server, run: Run):
         elif server.format == "csv":
             columns = to_csv_types(model)
             run.log_info("Using columns: " + str(columns))
-            if columns is None:
-                con.sql(
-                    f"""CREATE VIEW "{model_name}" AS SELECT * FROM read_csv('{model_path}', hive_partitioning=1);"""
-                )
-            else:
-                con.sql(
-                    f"""CREATE VIEW "{model_name}" AS SELECT * FROM read_csv('{model_path}', hive_partitioning=1, columns={columns});"""
-                )
+
+            # Start with the required parameter.
+            params = ["hive_partitioning=1"]
+
+            # Loop over optional CSV parameters.
+            for param in ("delimiter", "header", "escape", "encoding"):
+                value = getattr(server, param)
+                if value is not None:
+                    # Wrap string values in quotes.
+                    if isinstance(value, str):
+                        params.append(f"{param}='{value}'")
+                    else:
+                        params.append(f"{param}={value}")
+
+            # Add columns if they exist.
+            if columns is not None:
+                params.append(f"columns={columns}")
+
+            # Build the parameter string.
+            params_str = ", ".join(params)
+
+            # Create the view with the assembled parameters.
+            con.sql(f"""CREATE VIEW "{model_name}" AS SELECT * FROM read_csv('{model_path}', {params_str});""")
         elif server.format == "delta":
             con.sql("update extensions;")  # Make sure we have the latest delta extension
             con.sql(f"""CREATE VIEW "{model_name}" AS SELECT * FROM delta_scan('{model_path}');""")
